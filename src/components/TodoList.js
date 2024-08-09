@@ -1,116 +1,3 @@
-// import React, { useState, useEffect, useRef } from 'react';
-// import axios from '../axiosConfig';
-
-// const TodoList = ({ token, setToken }) => {
-//     const [todos, setTodos] = useState([]);
-//     const [newTodo, setNewTodo] = useState('');
-//     const ws = useRef(null);
-
-//     const connectWebSocket = () => {
-//         ws.current = new WebSocket('ws://localhost:8080/ws');
-
-//         ws.current.onopen = () => {
-//             console.log("WebSocket connection established");
-//         };
-
-//         ws.current.onmessage = (event) => {
-//             const updatedTodos = JSON.parse(event.data);
-//             setTodos(updatedTodos);
-//         };
-
-//         ws.current.onerror = (error) => {
-//             console.error('WebSocket error:', error);
-//         };
-
-//         ws.current.onclose = (event) => {
-//             console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
-//             // Reconnect after a delay if the closure was unexpected
-//             if (event.code !== 1000 && event.code !== 1001) {
-//                 setTimeout(() => {
-//                     console.log("Reconnecting WebSocket...");
-//                     connectWebSocket();
-//                 }, 1000);
-//             }
-//         };
-//     };
-
-//     useEffect(() => {
-//         if (!token) return;
-
-//         // Fetch initial todos
-//         axios.get('/todos')
-//             .then(response => setTodos(response.data))
-//             .catch(error => console.error('Error fetching todos:', error));
-
-//         // Delay WebSocket connection initialization
-//         setTimeout(connectWebSocket, 1000);
-//         console.log("running")
-//         return () => {
-//             if (ws.current) {
-//                 ws.current.close();
-//             }
-//         };
-//     }, [token]);
-
-//     const handleAddTodo = () => {
-//         if (newTodo.trim() === '') return;
-
-//         axios.post('/todos', { title: newTodo, completed: false })
-//             .then(response => {
-//                 setNewTodo('');
-//             })
-//             .catch(error => console.error('Error adding todo:', error));
-//     };
-
-//     const handleToggleTodo = (id) => {
-//         const todo = todos.find(todo => todo.id === id);
-//         axios.put(`/todos/${id}`, { ...todo, completed: !todo.completed })
-//             .catch(error => console.error('Error updating todo:', error));
-//     };
-
-//     const handleDeleteTodo = (id) => {
-//         axios.delete(`/todos/${id}`)
-//             .catch(error => console.error('Error deleting todo:', error));
-//     };
-
-//     const handleLogout = () => {
-//         localStorage.removeItem('token');
-//         setToken(null);
-//     };
-
-//     if (!token) {
-//         return <div>Please log in or register.</div>;
-//     }
-
-//     return (
-//         <div>
-//             <h1>Todo List</h1>
-//             <button onClick={handleLogout}>Logout</button>
-//             <input 
-//                 type="text" 
-//                 value={newTodo} 
-//                 onChange={(e) => setNewTodo(e.target.value)} 
-//                 placeholder="New todo"
-//             />
-//             <button onClick={handleAddTodo}>Add Todo</button>
-//             <ul>
-//                 {todos && todos.map(todo => (
-//                     <li key={todo.id}>
-//                         <input 
-//                             type="checkbox" 
-//                             checked={todo.completed} 
-//                             onChange={() => handleToggleTodo(todo.id)} 
-//                         />
-//                         {todo.title}
-//                         <button onClick={() => handleDeleteTodo(todo.id)}>Delete</button>
-//                     </li>
-//                 ))}
-//             </ul>
-//         </div>
-//     );
-// };
-
-// export default TodoList;
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '../axiosConfig';
 import Layout from './Layout'; // Import the Layout component
@@ -118,6 +5,7 @@ import Layout from './Layout'; // Import the Layout component
 const TodoList = ({ token, setToken }) => {
     const [todos, setTodos] = useState([]);
     const [newTodo, setNewTodo] = useState('');
+    const [error, setError] = useState(null); 
     const ws = useRef(null);
 
     const connectWebSocket = () => {
@@ -134,6 +22,7 @@ const TodoList = ({ token, setToken }) => {
 
         ws.current.onerror = (error) => {
             console.error('WebSocket error:', error);
+            setError('WebSocket connection error. Please try again later.');
         };
 
         ws.current.onclose = (event) => {
@@ -154,7 +43,10 @@ const TodoList = ({ token, setToken }) => {
         // Fetch initial todos
         axios.get('/todos')
             .then(response => setTodos(response.data))
-            .catch(error => console.error('Error fetching todos:', error));
+            .catch(error => {
+                console.error('Error fetching todos:', error);
+                setError('Failed to fetch todos. Please try again later.');
+            });
 
         // Delay WebSocket connection initialization
         setTimeout(connectWebSocket, 1000);
@@ -172,19 +64,35 @@ const TodoList = ({ token, setToken }) => {
         axios.post('/todos', { title: newTodo, completed: false })
             .then(response => {
                 setNewTodo('');
+                setError(null); // Clear any existing error messages
             })
-            .catch(error => console.error('Error adding todo:', error));
+            .catch(error => {
+                console.error('Error adding todo:', error);
+                setError('Failed to add todo. Please try again later.');
+            });
     };
 
     const handleToggleTodo = (id) => {
         const todo = todos.find(todo => todo.id === id);
         axios.put(`/todos/${id}`, { ...todo, completed: !todo.completed })
-            .catch(error => console.error('Error updating todo:', error));
+            .then(() => {
+                setError(null); 
+            })
+            .catch(error => {
+                console.error('Error updating todo:', error);
+                setError('Failed to update todo. Please try again later.');
+            });
     };
 
     const handleDeleteTodo = (id) => {
         axios.delete(`/todos/${id}`)
-            .catch(error => console.error('Error deleting todo:', error));
+            .then(() => {
+                setError(null); 
+            })
+            .catch(error => {
+                console.error('Error deleting todo:', error);
+                setError('Failed to delete todo. Please try again later.');
+            });
     };
 
     const handleLogout = () => {
@@ -206,6 +114,11 @@ const TodoList = ({ token, setToken }) => {
                 >
                     Logout
                 </button>
+                {error && (
+                    <div className="mb-4 p-2 bg-red-100 border border-red-300 text-red-700 rounded">
+                        {error}
+                    </div>
+                )}
                 <div className="mb-4 flex items-center space-x-4">
                     <input 
                         type="text" 
@@ -222,7 +135,7 @@ const TodoList = ({ token, setToken }) => {
                     </button>
                 </div>
                 <div className="space-y-4">
-                    {todos.map(todo => (
+                    {todos && todos.map(todo => (
                         <div 
                             key={todo.id} 
                             className="p-4 bg-gray-100 rounded-lg shadow-md border border-gray-300"
